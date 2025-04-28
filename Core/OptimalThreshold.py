@@ -43,21 +43,21 @@ def iterative_threshold(image, epsilon=0.5, max_iterations=200):
     binary_image[image <= current_threshold] = 255
 
     return current_threshold, binary_image
-
-if __name__ == "__main__":
-    img = cv2.imread('../images/Snake/fish.png')
-
-    if img is None:
-        print("Error: Image not found or path incorrect.")
-        exit()
-
-    threshold_value, binary_img = iterative_threshold(img)
-
-    print(f"Final Threshold: {threshold_value}")
-
-    # Show the images
-    cv2.imshow('Original Image', img)
-    cv2.imshow('Binary Image', binary_img)
-
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+#
+# if __name__ == "__main__":
+#     img = cv2.imread('../images/Snake/fish.png')
+#
+#     if img is None:
+#         print("Error: Image not found or path incorrect.")
+#         exit()
+#
+#     threshold_value, binary_img = iterative_threshold(img)
+#
+#     print(f"Final Threshold: {threshold_value}")
+#
+#     # Show the images
+#     cv2.imshow('Original Image', img)
+#     cv2.imshow('Binary Image', binary_img)
+#
+#     cv2.waitKey(0)
+#     cv2.destroyAllWindows()

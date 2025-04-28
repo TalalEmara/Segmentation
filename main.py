@@ -2,11 +2,9 @@ import cv2
 import numpy as np
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, \
-    QGroupBox, QSpinBox, QDoubleSpinBox, QComboBox, QBoxLayout
-
-from Core.FeatureMatching import sift_detector, match_features, draw_matches
-from Core.HarrisFeatures import extractHarrisFeatures
-from Core.lamda import lambda_detector
+    QGroupBox, QSpinBox, QDoubleSpinBox, QComboBox, QBoxLayout, QCheckBox
+from Core.OptimalThreshold import iterative_threshold
+from Core.RegionGrowing import region_growing
 from GUI.styles import GroupBoxStyle, button_style, second_button_style, label_style
 from Core.canny import canny
 from Core.imageMode import rgb_to_grayscale
@@ -18,10 +16,10 @@ class FetchFeature(QMainWindow):
     def __init__(self):
         super().__init__()  # Initialize QMainWindow
         self.setWindowTitle("Raqib")
-        self.resize(1200, 800)
+        self.setFixedSize(1200, 800)
 
         self.initializeUI()
-        self.createCornerDetectParameters()
+        self.createOptimalParameters()
         self.setupLayout()
         self.styleUI()
         self.connectUI()
@@ -29,16 +27,16 @@ class FetchFeature(QMainWindow):
     def initializeUI(self):
 
         self.processingImage = None
-        self.currentMode = "Corner Detection"
+        self.currentMode = "Optimal Threshold"
         self.logo = QLabel("Raqip")
 
         def createModePanel():
-            self.cornerButton = QPushButton("Corner Detection")
-            self.matchingButton = QPushButton("Feature Matching")
+            self.optimalButton = QPushButton("Optimal Threshold")
+            self.regionButton = QPushButton("Region Growing")
 
 
-            self.cornerButton.clicked.connect(lambda: self.changeMode("Corner Detection"))
-            self.matchingButton.clicked.connect(lambda: self.changeMode("Feature Matching"))
+            self.optimalButton.clicked.connect(lambda: self.changeMode("Optimal Threshold"))
+            self.regionButton.clicked.connect(lambda: self.changeMode("Region Growing"))
 
 
         createModePanel()
@@ -52,124 +50,62 @@ class FetchFeature(QMainWindow):
         self.processButton = QPushButton("Process")
 
 
-    def createCornerDetectParameters(self):
-        self.parametersGroupBox = QGroupBox("Corner Detection Parameters")
+    def createOptimalParameters(self):
+        self.parametersGroupBox = QGroupBox("Optimal Threshold")
         self.parametersGroupBox.setStyleSheet(GroupBoxStyle)
 
-        self.detectionMethodLabel = QLabel("Detection method")
-        self.detectionMethodLabel.setAlignment(Qt.AlignCenter)
-        self.detectionMethod = QComboBox()
-        self.detectionMethod.addItem("Harris operator")
-        self.detectionMethod.addItem("- lambda method")
+        self.optimalThresholdLabel = QLabel("Optimal Threshold:")
+        self.optimalThresholdLabel.setAlignment(Qt.AlignCenter)
 
-        self.windowSizeLabel = QLabel("Window size")
-        self.windowSizeLabel.setAlignment(Qt.AlignCenter)
-        self.windowSize = QSpinBox()
-        self.windowSize.setValue(7)
-        self.windowSize.setSingleStep(2)
-        self.windowSize.valueChanged.connect(
-            lambda v: self.windowSize.setValue(v + 1 if v % 2 == 0 else v)
-        )
-        # inside createCornerDetectParameters()
 
+        self.maxIterationsLabel = QLabel("Max iteratons")
+        self.maxIterationsLabel.setAlignment(Qt.AlignCenter)
+        self.maxIterations = QSpinBox()
+        self.maxIterations.setSingleStep(1)
+        self.maxIterations.setRange(1,1000)
+        self.maxIterations.setValue(200)
         # … after windowSize setup …
 
-        # Harris-style (integer) distance threshold
-        self.distThreshLabel_int = QLabel("Distance Threshold")
-        self.distThreshLabel_int.setAlignment(Qt.AlignCenter)
-        self.distThresh_int = QSpinBox()
-        self.distThresh_int.setRange(1, 1200)
-        self.distThresh_int.setValue(50)
 
         # Lambda-style (float %) threshold
-        self.threshLabel_float = QLabel("Threshold (%)")
-        self.threshLabel_float.setAlignment(Qt.AlignCenter)
-        self.thresh_float = QDoubleSpinBox()
-        self.thresh_float.setRange(0.1, 10.0)
-        self.thresh_float.setSingleStep(0.1)
-        self.thresh_float.setValue(0.01)
-        self.thresh_float.setSuffix(" %")
-        self.thresh_float.hide()
-        self.threshLabel_float.hide()
+        self.minimumChangeLabel = QLabel("Minimum change")
+        self.minimumChangeLabel.setAlignment(Qt.AlignCenter)
+        self.minimumChange = QDoubleSpinBox()
+        self.minimumChange.setRange(0.1, 10.0)
+        self.minimumChange.setSingleStep(0.1)
+        self.minimumChange.setValue(0.01)
 
         # Layout
         layout = QHBoxLayout()
-        layout.addWidget(self.detectionMethodLabel)
-        layout.addWidget(self.detectionMethod)
-        layout.addWidget(self.windowSizeLabel)
-        layout.addWidget(self.windowSize)
-
-        layout.addWidget(self.distThreshLabel_int)
-        layout.addWidget(self.distThresh_int)
-
-        layout.addWidget(self.threshLabel_float)
-        layout.addWidget(self.thresh_float)
+        layout.addWidget(self.maxIterationsLabel)
+        layout.addWidget(self.maxIterations)
+        layout.addWidget(self.minimumChangeLabel)
+        layout.addWidget(self.minimumChange)
+        layout.addWidget(self.optimalThresholdLabel)
 
         self.parametersGroupBox.setLayout(layout)
 
-        self.detectionMethod.currentIndexChanged.connect(self.updateDetectionParameters)
-        self.updateDetectionParameters()  # Initialize UI correctly
 
-    def updateDetectionParameters(self):
-        method = self.detectionMethod.currentText()
-
-        if method == "Harris operator":
-            # Show integer distance threshold
-            self.distThreshLabel_int.show()
-            self.distThresh_int.show()
-            # Hide float threshold
-            self.threshLabel_float.hide()
-            self.thresh_float.hide()
-
-            # Set ranges back if needed
-            self.distThresh_int.setRange(1, 1200)
-            self.windowSize.setRange(1, 1200)
-
-        elif method == "- lambda method":
-            # Hide integer distance threshold
-            self.distThreshLabel_int.hide()
-            self.distThresh_int.hide()
-            self.thresh_float.setValue(0.01)
-            # Show float threshold
-            self.threshLabel_float.show()
-            self.thresh_float.show()
-
-            # Adjust window‑size range for lambda
-            self.windowSize.setRange(1, 15)
-            self.windowSize.setValue(5)
-            # (thresh_float range already 0.1–10% with suffix)
-
-    def createMatchingParameters(self):
-        self.parametersGroupBox = QGroupBox("Matching Parameters")
+    def createRegionParameters(self):
+        self.parametersGroupBox = QGroupBox("Region Growing Parameters")
         self.parametersGroupBox.setStyleSheet(GroupBoxStyle)
 
-        self.matchingMethodLabel = QLabel("Matching method")
-        self.matchingMethodLabel.setAlignment(Qt.AlignCenter)
-        self.matchingMethod = QComboBox()
-        self.matchingMethod.addItem("SSD")
-        self.matchingMethod.addItem("NCC")
+        self.regionThresholdLabel = QLabel("threshold")
+        self.regionThresholdLabel.setAlignment(Qt.AlignCenter)
+        self.regionThreshold = QSpinBox()
+        self.regionThreshold.setRange(0, 255)
+        self.regionThreshold.setValue(20)
 
-        self.topMatchesLabel = QLabel("Top matches:")
-        self.topMatchesLabel.setAlignment(Qt.AlignCenter)
-        self.topMatches = QSpinBox()
-        self.topMatches.setRange(10, 300)
-        self.topMatches.setValue(50)
-
-        self.matchingThresholdLabel = QLabel("Max Radius:")
-        self.matchingThresholdLabel.setAlignment(Qt.AlignCenter)
-        self.matchingThreshold = QDoubleSpinBox()
-        self.matchingThreshold.setRange(0, 1)
-        self.matchingThreshold.setSingleStep(.1)
-        self.matchingThreshold.setValue(.6)
+        self.coloredImageLabel = QLabel("Colored:")
+        self.coloredImageLabel.setAlignment(Qt.AlignCenter)
+        self.coloredImageCheck = QCheckBox()
 
         layout = QHBoxLayout()
 
-        layout.addWidget(self.matchingMethodLabel)
-        layout.addWidget(self.matchingMethod)
-        layout.addWidget(self.topMatchesLabel)
-        layout.addWidget(self.topMatches)
-        layout.addWidget(self.matchingThresholdLabel)
-        layout.addWidget(self.matchingThreshold)
+        layout.addWidget(self.regionThresholdLabel)
+        layout.addWidget(self.regionThreshold)
+        layout.addWidget(self.coloredImageLabel)
+        layout.addWidget(self.coloredImageCheck)
 
         self.parametersGroupBox.setLayout(layout)
 
@@ -183,7 +119,7 @@ class FetchFeature(QMainWindow):
         mainLayout = QHBoxLayout()
         modesLayout = QVBoxLayout()
         workspace = QVBoxLayout()
-        self.imagesLayout = QBoxLayout(QBoxLayout.TopToBottom)
+        self.imagesLayout = QHBoxLayout()
         imagesLayoutH = QHBoxLayout()
         self.parametersLayout = QHBoxLayout()
 
@@ -192,22 +128,20 @@ class FetchFeature(QMainWindow):
 
         # Add widgets to layout
         modesLayout.addWidget(self.logo, alignment=Qt.AlignCenter)
-        modesLayout.addWidget(self.cornerButton)
-        modesLayout.addWidget(self.matchingButton)
+        modesLayout.addWidget(self.regionButton)
+        modesLayout.addWidget(self.optimalButton)
         # modesLayout.addWidget(self.houghCirclesButton)
         # modesLayout.addWidget(self.houghEllipseButton)
         # modesLayout.addWidget(self.snakeButton)
         modesLayout.addStretch()
 
-        imagesLayoutH.addWidget(self.inputViewer,3)
-        imagesLayoutH.addWidget(self.secondInputViewer, 3)
 
 
-        self.imagesLayout.addLayout(imagesLayoutH,1)
-        self.imagesLayout.addWidget(self.outputViewer,1)
+        self.imagesLayout.addWidget(self.inputViewer)
+        self.imagesLayout.addWidget(self.outputViewer)
         # Nest layouts
-        mainLayout.addLayout(modesLayout,10)
-        mainLayout.addLayout(workspace,90)
+        mainLayout.addLayout(modesLayout,20)
+        mainLayout.addLayout(workspace,80)
 
         workspace.addLayout(self.imagesLayout)
         workspace.addLayout(self.parametersLayout)
@@ -225,21 +159,13 @@ class FetchFeature(QMainWindow):
             self.parametersGroupBox.deleteLater()  # Properly delete the widget
 
         # Create the corresponding parameter panel
-        if mode == "Corner Detection":
-            self.createCornerDetectParameters()
-            self.secondInputViewer.hide()
-            self.imagesLayout.setDirection(QBoxLayout.LeftToRight)
-            # self.chainCodeLabel.show()
+        if mode == "Optimal Threshold":
+            self.createOptimalParameters()
 
-        elif mode == "Feature Matching":
-            self.createMatchingParameters()
-            self.imagesLayout.setDirection(QBoxLayout.TopToBottom)
-
-            self.secondInputViewer.show()
+        elif mode == "Region Growing":
+            self.createRegionParameters()
 
 
-
-        # Add new parameters group box to layout
         self.parametersLayout.insertWidget(0, self.parametersGroupBox)
 
     def styleUI(self):
@@ -252,45 +178,29 @@ class FetchFeature(QMainWindow):
         self.processButton.setFixedWidth(250)
         self.processButton.setFixedHeight(40)
         # self.processButton.setStyleSheet(second_button_style)
-        self.cornerButton.setStyleSheet(button_style)
-        self.matchingButton.setStyleSheet(button_style)
+        self.optimalButton.setStyleSheet(button_style)
+        self.regionButton.setStyleSheet(button_style)
 
 
 
     def connectUI(self):
         self.processButton.clicked.connect(self.processImage)
-        # self.inputViewer.selectionMade.connect(self.setSnakePoints)
+        self.inputViewer.selectionMade.connect(self.on_selection_made)
+
+    def on_selection_made(self,coords):
+        self.selected = coords
 
     def processImage(self):
         self.processingImage = self.inputViewer.image.copy()
-        if self.currentMode == "Corner Detection":
-            if self.detectionMethod.currentIndex() == 0:
-                _, _, _, self.processingImage = extractHarrisFeatures(
-                    self.processingImage,
-                    0.04,
-                    self.windowSize.value(),
-                    dist_threshold= self.distThresh_int.value()
-                )
-                self.outputViewer.groupBox.setTitle(f"Harris Detection)")
+        if self.currentMode == "Optimal Threshold":
+            finalThreshold,self.processingImage = iterative_threshold(self.processingImage,self.minimumChange.value(),self.maxIterations.value())
+            self.optimalThresholdLabel.setText(f"Optimal Threshold: {finalThreshold}")
 
-            elif self.detectionMethod.currentIndex() == 1:
-                _,_,self.processingImage = lambda_detector(self.processingImage,self.thresh_float.value(),self.windowSize.value())
-                self.outputViewer.groupBox.setTitle(f"- lambda")
+        elif self.currentMode == "Region Growing":
 
-            self.outputViewer.displayImage(self.processingImage)
+            self.processingImage = region_growing(self.processingImage, self.selected, self.regionThreshold.value(),not(self.coloredImageCheck.isChecked()))
 
-        elif self.currentMode == "Feature Matching":
-            self.secondProcessingImage = self.secondInputViewer.image.copy()
-            kp1, des1 = sift_detector(rgb_to_grayscale(self.processingImage))
-            kp2, des2 = sift_detector(rgb_to_grayscale(self.secondProcessingImage))
-
-            if self.matchingMethod.currentIndex() == 0:
-                matches = match_features(des1, des2,"ssd",self.topMatches.value(),self.matchingThreshold.value())
-            elif self.matchingMethod.currentIndex() == 1:
-                matches = match_features(des1, des2,"ncc",self.topMatches.value(),self.matchingThreshold.value())
-
-            self.outputViewer.displayImage(draw_matches(self.processingImage, kp1, self.secondProcessingImage, kp2, matches))
-
+        self.outputViewer.displayImage(self.processingImage)
 
 
 
