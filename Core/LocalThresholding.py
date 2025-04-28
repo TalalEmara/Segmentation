@@ -1,6 +1,6 @@
 import cv2 as cv
 import numpy as np
-from OptimalThreshold import optimalThreshold
+from OptimalThreshold import iterative_threshold
 from otsu_thresholding import otsu_threshold
 
 def local_optimal_thresholding(img, threshold_type, patch_size=64):
@@ -16,7 +16,7 @@ def local_optimal_thresholding(img, threshold_type, patch_size=64):
             
             # Thresholding types
             if threshold_type == 'optimal':
-                threshold_patch = optimalThreshold(patch, 0.5, 255)
+                threshold_patch = iterative_threshold(patch, 0.5, 255)
             elif threshold_type == 'otsu':
                 threshold_patch = otsu_threshold(patch)[1]
             elif threshold_type == 'spectral':
