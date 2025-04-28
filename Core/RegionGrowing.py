@@ -52,18 +52,18 @@ def region_growing(image, seed_point, threshold=20, use_intensity=True):
 
     return segmented_img
 
-
-img = cv2.imread('../images/Snake/apple.png')
-
-seed = (80, 250)
-
-segmented_region = region_growing(img, seed, threshold=90, use_intensity=True)
-
-plt.figure(figsize=(10, 5))
-plt.subplot(1, 2, 1)
-plt.title('Original')
-plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-plt.subplot(1, 2, 2)
-plt.title('Segmented Region (Original Values)')
-plt.imshow(cv2.cvtColor(segmented_region, cv2.COLOR_BGR2RGB))
-plt.show()
+#
+# img = cv2.imread('../images/Snake/apple.png')
+#
+# seed = (80, 250)
+#
+# segmented_region = region_growing(img, seed, threshold=90, use_intensity=True)
+#
+# plt.figure(figsize=(10, 5))
+# plt.subplot(1, 2, 1)
+# plt.title('Original')
+# plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+# plt.subplot(1, 2, 2)
+# plt.title('Segmented Region (Original Values)')
+# plt.imshow(cv2.cvtColor(segmented_region, cv2.COLOR_BGR2RGB))
+# plt.show()
