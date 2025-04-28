@@ -1,34 +1,26 @@
-import cv2
+import cv2 as cv
 import numpy as np
+from OptimalThreshold import optimalThreshold
 
-def local_thresholding(image, window_size=11, C=9):
-    if window_size % 2 == 0:
-        raise ValueError("window_size must be an odd integer. Try again, wise one!")
-    
-    local_mean = cv2.GaussianBlur(image, (window_size, window_size), 3)
-    thresholds = local_mean - C
-    binary = (image > thresholds).astype(np.uint8) * 255
-    return binary
+def local_optimal_thresholding(img, threshold_type, patch_size=64):
+    h, w = img.shape
+    result = np.zeros_like(img)
 
+    for y in range(0, h, patch_size):
+        for x in range(0, w, patch_size):
+            patch = img[y:y+patch_size, x:x+patch_size]
 
-def localThresholdingCV(image, window_size=11, C=9):
-    if window_size % 2 == 0:
-        raise ValueError("window_size must be an odd integer. Try again, wise one!")
+            if patch.size == 0:
+                continue
+            
+            # Thresholding types
+            if threshold_type == 'optimal':
+                threshold_patch = optimalThreshold(patch, 0.5, 255)
+            elif threshold_type == 'otsu':
+                pass
+            elif threshold_type == 'spectral':
+                pass
 
-    # image = cv2.GaussianBlur(image, (11, 11), 0)
+            result[y:y+patch_size, x:x+patch_size] = threshold_patch
 
-    thresh = cv2.adaptiveThreshold(image, 255, 
-                               cv2.ADAPTIVE_THRESH_MEAN_C, 
-                               cv2.THRESH_BINARY, 
-                               window_size, C)
-    return thresh
-
-def test():
-    image = cv2.imread("CV/Segmentation/images/Snake/Coins04.jpg", 0)  # Load a grayscale image
-    local_thresholded_image_cv = localThresholdingCV(image, window_size=11, C=9)
-    local_thresholded_image = local_thresholding(image, window_size=11, C=9)
-    cv2.imshow("Local Thresholding (custom)", local_thresholded_image)
-    cv2.imshow("Local Thresholding (opencv)", local_thresholded_image_cv)
-    cv2.waitKey(0)
-
-test()
+    return result
