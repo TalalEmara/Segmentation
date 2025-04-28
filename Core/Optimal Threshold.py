@@ -1,7 +1,12 @@
 import cv2
 import numpy as np
 
+from Core.imageMode import rgb_to_grayscale
+
+
 def iterative_threshold(image, epsilon=0.5, max_iterations=200):
+
+    image =rgb_to_grayscale(image)
 
     height, width = image.shape
 
@@ -33,7 +38,6 @@ def iterative_threshold(image, epsilon=0.5, max_iterations=200):
 
         current_threshold = new_threshold
 
-    # Step 6: Apply the final threshold to create a binary image
     binary_image = np.zeros_like(image, dtype=np.uint8)
     binary_image[image > current_threshold] = 0
     binary_image[image <= current_threshold] = 255
@@ -41,8 +45,7 @@ def iterative_threshold(image, epsilon=0.5, max_iterations=200):
     return current_threshold, binary_image
 
 if __name__ == "__main__":
-    # Read the image in grayscale
-    img = cv2.imread('../images/Snake/fish.png', cv2.IMREAD_GRAYSCALE)
+    img = cv2.imread('../images/Snake/fish.png')
 
     if img is None:
         print("Error: Image not found or path incorrect.")
