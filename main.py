@@ -17,7 +17,7 @@ import time
 class FetchFeature(QMainWindow):
     def __init__(self):
         super().__init__()  # Initialize QMainWindow
-        self.setWindowTitle("Fetch Features")
+        self.setWindowTitle("Raqib")
         self.resize(1200, 800)
 
         self.initializeUI()
@@ -30,7 +30,7 @@ class FetchFeature(QMainWindow):
 
         self.processingImage = None
         self.currentMode = "Corner Detection"
-        self.logo = QLabel("Fetch Feature")
+        self.logo = QLabel("Raqip")
 
         def createModePanel():
             self.cornerButton = QPushButton("Corner Detection")
