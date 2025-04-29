@@ -3,7 +3,7 @@ import cv2 as cv
 import time
 from sklearn.neighbors import KDTree
 
-def mean_shift(image, bandwidth=2.0, threshold=1e-3, bin_size=1.0):
+def mean_shift(image, bandwidth=30, threshold=1e-3, bin_size=5):
     # Image preprocessing
     original_shape = image.shape
     image = cv.GaussianBlur(image, (5, 5), 0)
@@ -77,7 +77,7 @@ def test():
 
     # Time your custom mean shift
     start_time = time.time()
-    clustered_image = mean_shift(image, bandwidth=30)
+    clustered_image = mean_shift(image)
     end_time = time.time()
     print(f"Custom Mean Shift Time: {end_time - start_time:.2f} seconds")
 
