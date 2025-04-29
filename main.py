@@ -4,12 +4,18 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, \
     QGroupBox, QSpinBox, QDoubleSpinBox, QComboBox, QBoxLayout, QCheckBox
 from Core.OptimalThreshold import iterative_threshold
+from Core.otsu_thresholding import otsu_threshold
 from Core.RegionGrowing import region_growing
+from Core.spectral import multi_otsu
+from Core.LocalThresholding import local_optimal_thresholding
+from Core.kmean_clustering import segment_image
 from GUI.styles import GroupBoxStyle, button_style, second_button_style, label_style
 from Core.canny import canny
 from Core.imageMode import rgb_to_grayscale
 from GUI.ImageViewer import ImageViewer
+
 import time
+from PIL import Image  
 
 
 class FetchFeature(QMainWindow):
@@ -33,10 +39,17 @@ class FetchFeature(QMainWindow):
         def createModePanel():
             self.optimalButton = QPushButton("Optimal Threshold")
             self.regionButton = QPushButton("Region Growing")
-
+            self.otsuButton = QPushButton("Otsu Threshold")
+            self.kmeansButton = QPushButton("K-means Clustering")
+            self.spectralButton = QPushButton("Spectral Threshold") 
+            self.localButton = QPushButton("Local Threshold")  
 
             self.optimalButton.clicked.connect(lambda: self.changeMode("Optimal Threshold"))
+            self.otsuButton.clicked.connect(lambda: self.changeMode("Otsu Threshold")) 
             self.regionButton.clicked.connect(lambda: self.changeMode("Region Growing"))
+            self.kmeansButton.clicked.connect(lambda: self.changeMode("K-means Clustering"))
+            self.spectralButton.clicked.connect(lambda: self.changeMode("Spectral Threshold"))  
+            self.localButton.clicked.connect(lambda: self.changeMode("Local Threshold"))
 
 
         createModePanel()
@@ -50,6 +63,48 @@ class FetchFeature(QMainWindow):
         self.processButton = QPushButton("Process")
 
 
+    def createSpectralParameters(self):
+        self.parametersGroupBox = QGroupBox("Spectral Parameters")
+        self.parametersGroupBox.setStyleSheet(GroupBoxStyle)
+        
+        self.classesLabel = QLabel("Number of classes:")
+        self.classesSpinBox = QSpinBox()
+        self.classesSpinBox.setRange(2, 10)
+        self.classesSpinBox.setValue(3)
+        
+        self.spectralResultLabel = QLabel("Thresholds:")
+        self.spectralResultLabel.setAlignment(Qt.AlignCenter)
+        
+        layout = QHBoxLayout()
+        layout.addWidget(self.classesLabel)
+        layout.addWidget(self.classesSpinBox)
+        layout.addWidget(self.spectralResultLabel)
+        layout.addWidget(self.processButton)
+        
+        self.parametersGroupBox.setLayout(layout)
+
+    def createLocalParameters(self):
+        self.parametersGroupBox = QGroupBox("Local Parameters")
+        self.parametersGroupBox.setStyleSheet(GroupBoxStyle)
+        
+        self.patchLabel = QLabel("Patch size:")
+        self.patchSpinBox = QSpinBox()
+        self.patchSpinBox.setRange(16, 256)
+        self.patchSpinBox.setValue(64)
+        
+        self.methodLabel = QLabel("Method:")
+        self.methodCombo = QComboBox()
+        self.methodCombo.addItems(["optimal", "otsu", "spectral"])
+        
+        layout = QHBoxLayout()
+        layout.addWidget(self.patchLabel)
+        layout.addWidget(self.patchSpinBox)
+        layout.addWidget(self.methodLabel)
+        layout.addWidget(self.methodCombo)
+        layout.addWidget(self.processButton)
+        
+        self.parametersGroupBox.setLayout(layout)
+        
     def createOptimalParameters(self):
         self.parametersGroupBox = QGroupBox("Optimal Threshold")
         self.parametersGroupBox.setStyleSheet(GroupBoxStyle)
@@ -85,6 +140,43 @@ class FetchFeature(QMainWindow):
 
         self.parametersGroupBox.setLayout(layout)
 
+
+    def createKmeansParameters(self):
+        self.parametersGroupBox = QGroupBox("K-means Parameters")
+        self.parametersGroupBox.setStyleSheet(GroupBoxStyle)
+        
+        self.kLabel = QLabel("Number of clusters:")
+        self.kLabel.setAlignment(Qt.AlignCenter)
+        self.kSpinBox = QSpinBox()
+        self.kSpinBox.setRange(2, 20)
+        self.kSpinBox.setValue(5)
+        
+      
+        placeholder = QWidget()
+        placeholder.setFixedWidth(self.minimumChange.width())
+        
+        layout = QHBoxLayout()
+        layout.addWidget(self.kLabel)
+        layout.addWidget(self.kSpinBox)
+        layout.addWidget(placeholder)  
+ 
+        
+        self.parametersGroupBox.setLayout(layout)
+
+        
+
+    def createOtsuParameters(self):
+        self.parametersGroupBox = QGroupBox("Otsu Threshold")
+        self.parametersGroupBox.setStyleSheet(GroupBoxStyle)
+
+        self.otsuThresholdLabel = QLabel("Calculated Threshold:")
+        self.otsuThresholdLabel.setAlignment(Qt.AlignCenter)
+
+        layout = QHBoxLayout()
+        layout.addWidget(self.otsuThresholdLabel)
+     
+
+        self.parametersGroupBox.setLayout(layout)
 
     def createRegionParameters(self):
         self.parametersGroupBox = QGroupBox("Region Growing Parameters")
@@ -130,6 +222,10 @@ class FetchFeature(QMainWindow):
         modesLayout.addWidget(self.logo, alignment=Qt.AlignCenter)
         modesLayout.addWidget(self.regionButton)
         modesLayout.addWidget(self.optimalButton)
+        modesLayout.addWidget(self.otsuButton)
+        modesLayout.addWidget(self.kmeansButton)
+        modesLayout.addWidget(self.spectralButton)  
+        modesLayout.addWidget(self.localButton)
         # modesLayout.addWidget(self.houghCirclesButton)
         # modesLayout.addWidget(self.houghEllipseButton)
         # modesLayout.addWidget(self.snakeButton)
@@ -162,8 +258,21 @@ class FetchFeature(QMainWindow):
         if mode == "Optimal Threshold":
             self.createOptimalParameters()
 
+        elif mode == "Otsu Threshold":
+            self.createOtsuParameters()
+
         elif mode == "Region Growing":
             self.createRegionParameters()
+
+        elif mode == "K-means Clustering": 
+            self.createKmeansParameters()
+
+        elif mode == "Spectral Threshold": 
+            self.createSpectralParameters()
+        elif mode == "Local Threshold":  
+            self.createLocalParameters()
+
+        
 
 
         self.parametersLayout.insertWidget(0, self.parametersGroupBox)
@@ -180,6 +289,10 @@ class FetchFeature(QMainWindow):
         # self.processButton.setStyleSheet(second_button_style)
         self.optimalButton.setStyleSheet(button_style)
         self.regionButton.setStyleSheet(button_style)
+        self.otsuButton.setStyleSheet(button_style) 
+        self.kmeansButton.setStyleSheet(button_style)
+        self.spectralButton.setStyleSheet(button_style)
+        self.localButton.setStyleSheet(button_style)
 
 
 
@@ -200,6 +313,36 @@ class FetchFeature(QMainWindow):
 
             self.processingImage = region_growing(self.processingImage, self.selected, self.regionThreshold.value(),not(self.coloredImageCheck.isChecked()))
 
+        elif self.currentMode == "Otsu Threshold":
+            finalThreshold, self.processingImage = otsu_threshold(self.processingImage)
+            self.otsuThresholdLabel.setText(f"Otsu Threshold: {finalThreshold}")
+
+        elif self.currentMode == "K-means Clustering":
+            K =self.kSpinBox.value()
+
+            if self.processingImage.ndim == 2:  # Grayscale image
+                self.processingImage = np.stack([self.processingImage]*3, axis=-1)
+
+            self.processingImage, _ = segment_image(self.processingImage, K)
+
+        elif self.currentMode == "Spectral Threshold":
+            classes = self.classesSpinBox.value()
+            if len(self.processingImage.shape) == 3:
+                self.processingImage = cv2.cvtColor(self.processingImage, cv2.COLOR_BGR2GRAY)
+            regions, thresholds = multi_otsu(self.processingImage, classes=classes)
+            self.processingImage = (regions * (255//(classes-1))).astype(np.uint8)
+            self.spectralResultLabel.setText(f"Thresholds: {thresholds}")
+        elif self.currentMode == "Local Threshold":
+            patch_size = self.patchSpinBox.value()
+            method = self.methodCombo.currentText()
+            if len(self.processingImage.shape) == 3:
+                self.processingImage = cv2.cvtColor(self.processingImage, cv2.COLOR_BGR2GRAY)
+            self.processingImage = local_optimal_thresholding(
+                self.processingImage,
+                threshold_type=method,
+                patch_size=patch_size
+            )
+            
         self.outputViewer.displayImage(self.processingImage)
 
 

@@ -62,22 +62,3 @@ def multi_otsu_ski(image):
     regions = np.digitize(image, bins=thresholds)
     return regions, thresholds
 
-def test():
-    image = cv2.imread('CV/Segmentation/images/bobama.jpg')
-    
-    start_time = time.time()
-    regions, _ = multi_otsu(image, classes=3, levels=64)
-    end_time = time.time()
-    print(f"Mean spectral Time: {end_time - start_time:.2f} seconds")
-
-    start_time = time.time()
-    regions_ski, _ = multi_otsu_ski(image)
-    end_time = time.time()
-    print(f"OpenCV spectral Time: {end_time - start_time:.2f} seconds")
-
-    cv2.imshow('scratch', regions.astype(np.uint8) * 85) 
-    cv2.imshow('ski', regions_ski.astype(np.uint8) * 85)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
-test()
