@@ -72,8 +72,7 @@ class AgglomerativeClusteringSuperpixel:
         return label_image
 
 def agglomerative_segment_with_superpixels(image, n_clusters=5, n_superpixels=100):
-    if image.shape == 3:
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2LAB)  # Convert BGR to RGB
     
     # Resize for faster processing (optional)
     image = cv2.resize(image, (200, 200))
@@ -91,7 +90,7 @@ def agglomerative_segment_with_superpixels(image, n_clusters=5, n_superpixels=10
 
 # Example usage:
 if __name__ == '__main__':
-    image = cv2.imread("CV/Segmentation/images/colored2.jpg")
+    image = cv2.imread("CV/Segmentation/images/nbc.png")
     segmented_image = agglomerative_segment_with_superpixels(
         image,
         n_clusters=7,
