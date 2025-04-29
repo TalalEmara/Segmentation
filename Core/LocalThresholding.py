@@ -2,6 +2,7 @@ import cv2 as cv
 import numpy as np
 from Core.OptimalThreshold import iterative_threshold
 from Core.otsu_thresholding import otsu_threshold
+from Core.spectral import multi_otsu
 
 def local_optimal_thresholding(img, threshold_type, patch_size=64):
     h, w = img.shape
@@ -20,7 +21,7 @@ def local_optimal_thresholding(img, threshold_type, patch_size=64):
             elif threshold_type == 'otsu':
                 threshold_patch = otsu_threshold(patch)[1]
             elif threshold_type == 'spectral':
-                pass
+                threshold_patch = multi_otsu(patch, 3)[1]
 
             result[y:y+patch_size, x:x+patch_size] = threshold_patch
 
