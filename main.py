@@ -272,23 +272,7 @@ class FetchFeature(QMainWindow):
         elif mode == "Local Threshold":  
             self.createLocalParameters()
 
-        elif self.currentMode == "Spectral Threshold":
-            classes = self.classesSpinBox.value()
-            if len(self.processingImage.shape) == 3:
-                self.processingImage = cv2.cvtColor(self.processingImage, cv2.COLOR_BGR2GRAY)
-            regions, thresholds = multi_otsu(self.processingImage, classes=classes)
-            self.processingImage = (regions * (255//(classes-1))).astype(np.uint8)
-            self.spectralResultLabel.setText(f"Thresholds: {thresholds}")
-        elif self.currentMode == "Local Threshold":
-            patch_size = self.patchSpinBox.value()
-            method = self.methodCombo.currentText()
-            if len(self.processingImage.shape) == 3:
-                self.processingImage = cv2.cvtColor(self.processingImage, cv2.COLOR_BGR2GRAY)
-            self.processingImage = local_optimal_thresholding(
-                self.processingImage,
-                threshold_type=method,
-                patch_size=patch_size
-            )
+        
 
 
         self.parametersLayout.insertWidget(0, self.parametersGroupBox)
@@ -341,6 +325,24 @@ class FetchFeature(QMainWindow):
 
             self.processingImage, _ = segment_image(self.processingImage, K)
 
+        elif self.currentMode == "Spectral Threshold":
+            classes = self.classesSpinBox.value()
+            if len(self.processingImage.shape) == 3:
+                self.processingImage = cv2.cvtColor(self.processingImage, cv2.COLOR_BGR2GRAY)
+            regions, thresholds = multi_otsu(self.processingImage, classes=classes)
+            self.processingImage = (regions * (255//(classes-1))).astype(np.uint8)
+            self.spectralResultLabel.setText(f"Thresholds: {thresholds}")
+        elif self.currentMode == "Local Threshold":
+            patch_size = self.patchSpinBox.value()
+            method = self.methodCombo.currentText()
+            if len(self.processingImage.shape) == 3:
+                self.processingImage = cv2.cvtColor(self.processingImage, cv2.COLOR_BGR2GRAY)
+            self.processingImage = local_optimal_thresholding(
+                self.processingImage,
+                threshold_type=method,
+                patch_size=patch_size
+            )
+            
         self.outputViewer.displayImage(self.processingImage)
 
 
