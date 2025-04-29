@@ -17,9 +17,12 @@ import numpy as np
 from PIL import Image
 
 def otsu_threshold(image):
-    
+     
     if isinstance(image, Image.Image):
+        image = image.convert('L')
         image = np.array(image)
+    elif len(image.shape) == 3:
+        image = np.mean(image, axis=2).astype(np.uint8)
     
     hist = np.zeros(256)
     for pixel in image.ravel():
@@ -78,7 +81,7 @@ def plot_histogram(image, threshold=None):
 # Example usage
 if __name__ == "__main__":
     # Load grayscale image
-    image = Image.open('images/bobama.jpg').convert('L')
+    image = Image.open('images/bobama.jpg')
     
    
    

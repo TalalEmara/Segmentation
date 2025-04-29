@@ -1,7 +1,7 @@
 import cv2 as cv
 import numpy as np
-from OptimalThreshold import iterative_threshold
-from otsu_thresholding import otsu_threshold
+from Core.OptimalThreshold import iterative_threshold
+from Core.otsu_thresholding import otsu_threshold
 
 def local_optimal_thresholding(img, threshold_type, patch_size=64):
     h, w = img.shape
