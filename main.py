@@ -7,10 +7,12 @@ from Core.OptimalThreshold import iterative_threshold
 from Core.otsu_thresholding import otsu_threshold
 from Core.RegionGrowing import region_growing
 from Core.spectral import multi_otsu
+from Core.meanShift import mean_shift_cv,mean_shift
 from Core.LocalThresholding import local_optimal_thresholding
 from Core.kmean_clustering import segment_image
 from GUI.styles import GroupBoxStyle, button_style, second_button_style, label_style
 from Core.canny import canny
+from Core.agglomerative import agglomerative_segment_with_superpixels
 from Core.imageMode import rgb_to_grayscale
 from GUI.ImageViewer import ImageViewer
 
@@ -34,15 +36,18 @@ class FetchFeature(QMainWindow):
 
         self.processingImage = None
         self.currentMode = "Optimal Threshold"
-        self.logo = QLabel("Raqip")
+        self.logo = QLabel("Catch")
 
         def createModePanel():
             self.optimalButton = QPushButton("Optimal Threshold")
-            self.regionButton = QPushButton("Region Growing")
             self.otsuButton = QPushButton("Otsu Threshold")
-            self.kmeansButton = QPushButton("K-means Clustering")
             self.spectralButton = QPushButton("Spectral Threshold") 
-            self.localButton = QPushButton("Local Threshold")  
+            self.localButton = QPushButton("Local Threshold")
+            self.regionButton = QPushButton("Region Growing")
+            self.kmeansButton = QPushButton("K-means Clustering")
+            self.meanShiftButton = QPushButton("Mean shift")
+            self.agglomerativeButton = QPushButton("agglomerative")
+
 
             self.optimalButton.clicked.connect(lambda: self.changeMode("Optimal Threshold"))
             self.otsuButton.clicked.connect(lambda: self.changeMode("Otsu Threshold")) 
@@ -50,6 +55,8 @@ class FetchFeature(QMainWindow):
             self.kmeansButton.clicked.connect(lambda: self.changeMode("K-means Clustering"))
             self.spectralButton.clicked.connect(lambda: self.changeMode("Spectral Threshold"))  
             self.localButton.clicked.connect(lambda: self.changeMode("Local Threshold"))
+            self.meanShiftButton.clicked.connect(lambda: self.changeMode("Mean shift"))
+            self.agglomerativeButton.clicked.connect(lambda: self.changeMode("agglomerative"))
 
 
         createModePanel()
@@ -79,8 +86,22 @@ class FetchFeature(QMainWindow):
         layout.addWidget(self.classesLabel)
         layout.addWidget(self.classesSpinBox)
         layout.addWidget(self.spectralResultLabel)
-        layout.addWidget(self.processButton)
-        
+
+        self.parametersGroupBox.setLayout(layout)
+
+    def createMeanShiftParameters(self):
+        self.parametersGroupBox = QGroupBox("Mean shift Parameters")
+        self.parametersGroupBox.setStyleSheet(GroupBoxStyle)
+
+        self.BandwidthLabel = QLabel("Bandwidth:")
+        self.BandwidthSpinBox = QSpinBox()
+        self.BandwidthSpinBox.setRange(2, 50)
+        self.BandwidthSpinBox.setValue(30)
+
+        layout = QHBoxLayout()
+        layout.addWidget(self.BandwidthLabel)
+        layout.addWidget(self.BandwidthSpinBox)
+
         self.parametersGroupBox.setLayout(layout)
 
     def createLocalParameters(self):
@@ -101,8 +122,7 @@ class FetchFeature(QMainWindow):
         layout.addWidget(self.patchSpinBox)
         layout.addWidget(self.methodLabel)
         layout.addWidget(self.methodCombo)
-        layout.addWidget(self.processButton)
-        
+
         self.parametersGroupBox.setLayout(layout)
         
     def createOptimalParameters(self):
@@ -163,6 +183,34 @@ class FetchFeature(QMainWindow):
         
         self.parametersGroupBox.setLayout(layout)
 
+    def createAgglomerative(self):
+        self.parametersGroupBox = QGroupBox("Agglomerative Parameters")
+        self.parametersGroupBox.setStyleSheet(GroupBoxStyle)
+
+        self.kclustersLabel = QLabel("Number of clusters:")
+        self.kclustersLabel.setAlignment(Qt.AlignCenter)
+        self.kclustersSpinBox = QSpinBox()
+        self.kclustersSpinBox.setRange(2, 20)
+        self.kclustersSpinBox.setValue(7)
+
+        self.SuperPixelsLabel = QLabel("Super Pixels")
+        self.SuperPixelsLabel.setAlignment(Qt.AlignCenter)
+        self.SuperPixelsSpinBox = QSpinBox()
+        self.SuperPixelsSpinBox.setRange(2, 1000)
+        self.SuperPixelsSpinBox.setValue(500)
+
+        placeholder = QWidget()
+        placeholder.setFixedWidth(self.minimumChange.width())
+
+        layout = QHBoxLayout()
+        layout.addWidget(self.kclustersLabel)
+        layout.addWidget(self.kclustersSpinBox)
+        layout.addWidget(self.SuperPixelsLabel)
+        layout.addWidget(self.SuperPixelsSpinBox)
+        layout.addWidget(placeholder)
+
+        self.parametersGroupBox.setLayout(layout)
+
         
 
     def createOtsuParameters(self):
@@ -220,12 +268,16 @@ class FetchFeature(QMainWindow):
 
         # Add widgets to layout
         modesLayout.addWidget(self.logo, alignment=Qt.AlignCenter)
-        modesLayout.addWidget(self.regionButton)
+
         modesLayout.addWidget(self.optimalButton)
         modesLayout.addWidget(self.otsuButton)
-        modesLayout.addWidget(self.kmeansButton)
-        modesLayout.addWidget(self.spectralButton)  
+        modesLayout.addWidget(self.spectralButton)
         modesLayout.addWidget(self.localButton)
+
+        modesLayout.addWidget(self.regionButton)
+        modesLayout.addWidget(self.kmeansButton)
+        modesLayout.addWidget(self.meanShiftButton)
+        modesLayout.addWidget(self.agglomerativeButton)
         # modesLayout.addWidget(self.houghCirclesButton)
         # modesLayout.addWidget(self.houghEllipseButton)
         # modesLayout.addWidget(self.snakeButton)
@@ -271,9 +323,10 @@ class FetchFeature(QMainWindow):
             self.createSpectralParameters()
         elif mode == "Local Threshold":  
             self.createLocalParameters()
-
-        
-
+        elif mode == "Mean shift":
+            self.createMeanShiftParameters()
+        elif mode == "agglomerative":
+            self.createAgglomerative()
 
         self.parametersLayout.insertWidget(0, self.parametersGroupBox)
 
@@ -293,6 +346,8 @@ class FetchFeature(QMainWindow):
         self.kmeansButton.setStyleSheet(button_style)
         self.spectralButton.setStyleSheet(button_style)
         self.localButton.setStyleSheet(button_style)
+        self.meanShiftButton.setStyleSheet(button_style)
+        self.agglomerativeButton.setStyleSheet(button_style)
 
 
 
@@ -335,14 +390,21 @@ class FetchFeature(QMainWindow):
         elif self.currentMode == "Local Threshold":
             patch_size = self.patchSpinBox.value()
             method = self.methodCombo.currentText()
-            if len(self.processingImage.shape) == 3:
-                self.processingImage = cv2.cvtColor(self.processingImage, cv2.COLOR_BGR2GRAY)
+            # if len(self.processingImage.shape) == 3:
+            #     self.processingImage = cv2.cvtColor(self.processingImage, cv2.COLOR_BGR2GRAY)
             self.processingImage = local_optimal_thresholding(
-                self.processingImage,
+                img=rgb_to_grayscale(self.processingImage),
                 threshold_type=method,
                 patch_size=patch_size
             )
-            
+        elif self.currentMode == "Mean shift":
+            bandwidth = self.BandwidthSpinBox.value()
+            self.processingImage = mean_shift(self.processingImage,bandwidth)
+
+        elif self.currentMode == "agglomerative":
+            clusters = self.kclustersSpinBox.value()
+            SuperPixels=self.SuperPixelsSpinBox.value()
+            self.processingImage = agglomerative_segment_with_superpixels(self.processingImage, clusters,SuperPixels)
         self.outputViewer.displayImage(self.processingImage)
 
 
